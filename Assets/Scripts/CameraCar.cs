@@ -56,6 +56,7 @@ public class CameraCar : MonoBehaviour
         {
             yaw = 180.0f;
         }
+        // yaw = -60.0f;
 
 
         //float limitDegrees = steerAngleLimit.Evaluate(speedKmH);

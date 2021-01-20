@@ -98,7 +98,7 @@ public class ArcadeCar : MonoBehaviour
 
 
         [Tooltip("Brake force magnitude")]
-        public float brakeForceMag = 4.0f;
+        public float brakeForceMag = 120.0f;
 
         [Header("Suspension settings")]
 
@@ -262,10 +262,14 @@ public class ArcadeCar : MonoBehaviour
 
         rb = GetComponent<Rigidbody>();
         rb.centerOfMass = centerOfMass;
+        Debug.Log(string.Format("Start执行了"));
     }
 
     void OnValidate()
     {
+        Debug.Log(string.Format("OnValidate执行了"));
+
+
         //HACK: to apply steering in editor
         if (rb == null)
         {
@@ -428,9 +432,14 @@ public class ArcadeCar : MonoBehaviour
 
     void UpdateInput()
     {
+
         float v = Input.GetAxis("Vertical");
         float h = Input.GetAxis("Horizontal");
         //Debug.Log (string.Format ("H = {0}", h));
+        // Debug.Log (string.Format ("输入H = {0}", h));
+        // Debug.Log(string.Format("输入V = {0}", v));
+
+
 
         if (!controllable)
         {
@@ -452,7 +461,7 @@ public class ArcadeCar : MonoBehaviour
             int numHits = Physics.RaycastNonAlloc(resetRay, resetRayHits, 250.0f);
 
             if (numHits > 0)
-            {                
+            {
                 float nearestDistance = float.MaxValue;
                 for (int j = 0; j < numHits; j++)
                 {
@@ -478,7 +487,8 @@ public class ArcadeCar : MonoBehaviour
                 nearestDistance -= 4.0f;
                 Vector3 resetPos = resetRay.origin + resetRay.direction * nearestDistance;
                 Reset(resetPos);
-            } else
+            }
+            else
             {
                 // Hard reset
                 Reset(new Vector3(-69.48f, 5.25f, 132.71f));
@@ -662,7 +672,8 @@ public class ArcadeCar : MonoBehaviour
 
             // in flight roll stabilization
             rb.AddTorque(axis * flightStabilizationForce * mass);
-        } else
+        }
+        else
         {
             // downforce
             Vector3 carDown = transform.TransformDirection(new Vector3(0.0f, -1.0f, 0.0f));
@@ -674,7 +685,7 @@ public class ArcadeCar : MonoBehaviour
 
             float mass = rb.mass;
 
-            rb.AddForce(carDown * mass * downForceAmount * downForce);
+            // rb.AddForce(carDown * mass * downForceAmount * downForce);
 
             //Debug.Log(string.Format("{0} downforce", downForceAmount * downForce));
         }
@@ -763,7 +774,7 @@ public class ArcadeCar : MonoBehaviour
     void AddForceAtPosition(Vector3 force, Vector3 position)
     {
         rb.AddForceAtPosition(force, position);
-        //Debug.DrawRay(position, force, Color.magenta);
+        // Debug.DrawRay(position, force, Color.magenta);
     }
 
 
@@ -813,8 +824,8 @@ public class ArcadeCar : MonoBehaviour
             // Draw wheel
             UnityEditor.Handles.DrawWireDisc(wsTo, wsAxle, axle.radius);
 
-			UnityEditor.Handles.DrawWireDisc(wsTo + wsAxle * wheelWidth, wsAxle, axle.radius);
-			UnityEditor.Handles.DrawWireDisc(wsTo - wsAxle * wheelWidth, wsAxle, axle.radius);
+            UnityEditor.Handles.DrawWireDisc(wsTo + wsAxle * wheelWidth, wsAxle, axle.radius);
+            UnityEditor.Handles.DrawWireDisc(wsTo - wsAxle * wheelWidth, wsAxle, axle.radius);
 
 
         }
@@ -842,6 +853,7 @@ public class ArcadeCar : MonoBehaviour
         {
             return false;
         }
+        // Debug.Log(string.Format("射线检测结果{0}",nearestHit.length));
 
         // Find the nearest hit point and filter invalid hits
         ////////////////////////////////////////////////////////////////////////////////////////
@@ -873,7 +885,6 @@ public class ArcadeCar : MonoBehaviour
             }
         }
         ////////////////////////////////////////////////////////////////////////////////////////
-
         return (nearestHit.distance <= maxDistance);
     }
 
@@ -887,11 +898,16 @@ public class ArcadeCar : MonoBehaviour
         // Get wheel world space rotation and axes
         Quaternion localWheelRot = Quaternion.Euler(new Vector3(0.0f, wheelData.yawRad * Mathf.Rad2Deg, 0.0f));
         Quaternion wsWheelRot = transform.rotation * localWheelRot;
+        // Debug.Log(string.Format("本地轮子角度{0}和世界轮子角度 {1}", localWheelRot, wsWheelRot));
+
 
         // Wheel axle left direction
         Vector3 wsAxleLeft = wsWheelRot * Vector3.left;
 
         wheelData.isOnGround = false;
+
+        // Debug.Log(string.Format("车轮射线的方向wsDownDirection {0}", wsDownDirection));
+
         wheelRay.direction = wsDownDirection;
 
 
@@ -901,6 +917,7 @@ public class ArcadeCar : MonoBehaviour
 
         wheelRay.origin = wsAttachPoint + wsAxleLeft * wheelWidth;
         RaycastHit s1 = new RaycastHit();
+        // Debug.Log(string.Format("车轮射线{0}", wheelRay));
         bool b1 = RayCast(wheelRay, traceLen, ref s1);
 
         wheelRay.origin = wsAttachPoint - wsAxleLeft * wheelWidth;
@@ -910,7 +927,7 @@ public class ArcadeCar : MonoBehaviour
         wheelRay.origin = wsAttachPoint;
         bool isCollided = RayCast(wheelRay, traceLen, ref wheelData.touchPoint);
 
-        // No wheel contant found
+        // No wheel content found
         if (!isCollided || !b1 || !b2)
         {
             // wheel do not touch the ground (relaxing spring)
@@ -942,18 +959,20 @@ public class ArcadeCar : MonoBehaviour
         // Negative value means that the spring is elongated.
 
         wheelData.compression = 1.0f - Mathf.Clamp01(suspLenNow / axle.lengthRelaxed);
+        // Debug.Log(string.Format("弹簧压缩值{0}", wheelData.compression));
 
         wheelData.debugText = wheelData.compression.ToString("F2");
 
         // Hooke's law (springs)
         // F = -k x 
 
-        // Spring force (try to reset compression from spring)
+        // Spring force (try to reset compression from spring)// 弹簧支撑力，支撑车体，不掉下来，保持高度
         float springForce = wheelData.compression * -axle.stiffness;
         suspForceMag += springForce;
 
         // Damping force (try to reset velocity to 0)
         float suspCompressionVelocity = (wheelData.compression - wheelData.compressionPrev) / dt;
+        // Debug.Log(string.Format("suspCompressionVelocity{0}", suspCompressionVelocity));
         wheelData.compressionPrev = wheelData.compression;
 
         float damperForce = -suspCompressionVelocity * axle.damping;
@@ -976,10 +995,13 @@ public class ArcadeCar : MonoBehaviour
 
         Vector3 wheelVelocity = rb.GetPointVelocity(wheelData.touchPoint.point);
 
+
         // Contact basis (can be different from wheel basis)
         Vector3 c_up = wheelData.touchPoint.normal;
         Vector3 c_left = (s1.point - s2.point).normalized;
         Vector3 c_fwd = Vector3.Cross(c_up, c_left);
+        // Debug.Log(string.Format("q前进方向{0}", c_fwd));
+
 
         // Calculate sliding velocity (velocity without normal force)
         Vector3 lvel = Vector3.Dot(wheelVelocity, c_left) * c_left;
@@ -1028,7 +1050,6 @@ public class ArcadeCar : MonoBehaviour
 
         laterialFriction = laterialFriction * slipperyK;
 
-
         // Simulate perfect static friction
         Vector3 frictionForce = -slidingForce * laterialFriction;
 
@@ -1042,6 +1063,8 @@ public class ArcadeCar : MonoBehaviour
         {
             float clampedMag = Mathf.Clamp(axle.brakeForceMag * rb.mass, 0.0f, longitudinalForce.magnitude);
             Vector3 brakeForce = longitudinalForce.normalized * clampedMag;
+            // Debug.Log(string.Format("制动力的大小{0}", brakeForce));
+
 
             if (isHandBrakeEnabled)
             {
@@ -1069,6 +1092,7 @@ public class ArcadeCar : MonoBehaviour
             Debug.DrawRay(wheelData.touchPoint.point, frictionForce, Color.red);
             Debug.DrawRay(wheelData.touchPoint.point, longitudinalForce, Color.white);
         }
+        // Debug.Log(string.Format("施加力{0}", frictionForce));
 
         // Apply resulting force
         AddForceAtPosition(frictionForce, wheelData.touchPoint.point);
@@ -1081,26 +1105,25 @@ public class ArcadeCar : MonoBehaviour
             Vector3 engineForce = c_fwd * accelerationForceMagnitude / (float)numberOfPoweredWheels / dt;
             AddForceAtPosition(engineForce, accForcePoint);
 
+
             if (debugDraw)
             {
                 Debug.DrawRay(accForcePoint, engineForce, Color.green);
             }
         }
-        //
-
-
-
-
     }
 
 
     void CalculateAxleForces(Axle axle, int totalWheelsCount, int numberOfPoweredWheels)
     {
         Vector3 wsDownDirection = transform.TransformDirection(Vector3.down);
+        // Debug.Log(string.Format("方向在经过从本地到世界后为wsD {0}", wsDownDirection));
         wsDownDirection.Normalize();
+        // Debug.Log(string.Format("归一化了以后wsD {0}", wsDownDirection));
 
         Vector3 localL = new Vector3(axle.width * -0.5f, axle.offset.y, axle.offset.x);
         Vector3 localR = new Vector3(axle.width * 0.5f, axle.offset.y, axle.offset.x);
+        // Debug.Log(string.Format("本地左{0}本地右{1}", localL,localR));
 
         Vector3 wsL = transform.TransformPoint(localL);
         Vector3 wsR = transform.TransformPoint(localR);
@@ -1110,6 +1133,9 @@ public class ArcadeCar : MonoBehaviour
         {
             WheelData wheelData = (wheelIndex == WHEEL_LEFT_INDEX) ? axle.wheelDataL : axle.wheelDataR;
             Vector3 wsFrom = (wheelIndex == WHEEL_LEFT_INDEX) ? wsL : wsR;
+
+            // Debug.Log(string.Format("wsDownDirection {0}", wsDownDirection));
+
 
             CalculateWheelForces(axle, wsDownDirection, wheelData, wsFrom, wheelIndex, totalWheelsCount, numberOfPoweredWheels);
         }
@@ -1122,7 +1148,9 @@ public class ArcadeCar : MonoBehaviour
         float antiRollForce = (travelL - travelR) * axle.antiRollForce;
         if (axle.wheelDataL.isOnGround)
         {
+            // Debug.Log(string.Format("左轮这里有施加平衡力,"));
             AddForceAtPosition(wsDownDirection * antiRollForce, axle.wheelDataL.touchPoint.point);
+
             if (debugDraw)
             {
                 Debug.DrawRay(axle.wheelDataL.touchPoint.point, wsDownDirection * antiRollForce, Color.magenta);
@@ -1131,10 +1159,11 @@ public class ArcadeCar : MonoBehaviour
 
         if (axle.wheelDataR.isOnGround)
         {
+            // Debug.Log(string.Format("右轮这里有施加平衡力,"));
             AddForceAtPosition(wsDownDirection * -antiRollForce, axle.wheelDataR.touchPoint.point);
             if (debugDraw)
             {
-                Debug.DrawRay(axle.wheelDataR.touchPoint.point, wsDownDirection * -antiRollForce, Color.magenta);
+                // Debug.DrawRay(axle.wheelDataR.touchPoint.point, wsDownDirection * -antiRollForce, Color.magenta);
             }
         }
 
@@ -1199,7 +1228,6 @@ public class ArcadeCar : MonoBehaviour
             additionalYaw = 180.0f;
             additionalMul = -Mathf.Rad2Deg;
         }
-
         Quaternion localWheelRot = Quaternion.Euler(new Vector3(data.visualRotationRad * additionalMul, additionalYaw + data.yawRad * Mathf.Rad2Deg, 0.0f));
         rot = transform.rotation * localWheelRot;
     }
@@ -1237,6 +1265,7 @@ public class ArcadeCar : MonoBehaviour
         Vector3 wsDownDirection = transform.TransformDirection(Vector3.down);
         wsDownDirection.Normalize();
 
+
         for (int axleIndex = 0; axleIndex < axles.Length; axleIndex++)
         {
             Axle axle = axles[axleIndex];
@@ -1246,13 +1275,15 @@ public class ArcadeCar : MonoBehaviour
 
             Vector3 wsL = transform.TransformPoint(localL);
             Vector3 wsR = transform.TransformPoint(localR);
+            // Debug.Log(string.Format("wsL{0}wsR{1}轮子信息{2}", wsL, wsR, axle.wheelDataL.visualRotationRad));
 
             Vector3 wsPos;
             Quaternion wsRot;
-
+            // 下面两段话就是对于轮子世界定位的初始化
             if (axle.wheelVisualLeft != null)
             {
                 CalculateWheelVisualTransform(wsL, wsDownDirection, axle, axle.wheelDataL, WHEEL_LEFT_INDEX, axle.wheelDataL.visualRotationRad, out wsPos, out wsRot);
+                // Debug.Log(string.Format("左轮世界定位{0},世界角度{1}",wsPos,wsRot));
                 axle.wheelVisualLeft.transform.position = wsPos;
                 axle.wheelVisualLeft.transform.rotation = wsRot;
                 axle.wheelVisualLeft.transform.localScale = new Vector3(axle.radius, axle.radius, axle.radius) * axle.visualScale;
@@ -1266,7 +1297,8 @@ public class ArcadeCar : MonoBehaviour
             if (axle.wheelVisualRight != null)
             {
                 CalculateWheelVisualTransform(wsR, wsDownDirection, axle, axle.wheelDataR, WHEEL_RIGHT_INDEX, axle.wheelDataR.visualRotationRad, out wsPos, out wsRot);
-                axle.wheelVisualRight.transform.position = wsPos;
+                // Debug.Log(string.Format("右轮世界定位{0},世界角度{1}",wsPos,wsRot));
+                axle.wheelVisualRight.transform.position = new Vector3(wsPos.x, wsPos.y, wsPos.z);
                 axle.wheelVisualRight.transform.rotation = wsRot;
                 axle.wheelVisualRight.transform.localScale = new Vector3(axle.radius, axle.radius, axle.radius) * axle.visualScale;
 
